@@ -1,27 +1,28 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 
-public class ballcontrol : MonoBehaviour
+public class BallControl : MonoBehaviour
 {
     public int rollingAverageAmount;
 
     public double signalOffset = 0;
-    public double accelerationScale = 1;
+    public float accelerationScale = 1;
 
-    public double maxVelocity = 1;
+    public float maxVelocity = 1;
 
-    public double coefficientOfResitution = 0.6;
+    public float coefficientOfRestitution = 0.6f;
 
     public double xUpperBound = 7;
     public double xLowerBound = -7;
     public double yUpperBound = 4.5;
     public double yLowerBound = -4.5;
 
+    double[] signalsX;
+    double[] signalsY;
 
     bool isTrialRunning = false;
-    double[] signalsX = new double[rollingAverageAmount];
-    double[] signalsY = new double[rollingAverageAmount];
     int signalIndex = 0;
 
     Vector3 acceleration;
@@ -29,6 +30,8 @@ public class ballcontrol : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+    double[] signalsX = new double[rollingAverageAmount];
+    double[] signalsY = new double[rollingAverageAmount];
         
     }
 
@@ -43,8 +46,8 @@ public class ballcontrol : MonoBehaviour
 	    
 	    signalIndex = signalIndex + 1 >= rollingAverageAmount ? 0 : signalIndex + 1;
 
-	    acceleration.x = signalsX.Sum() * accelerationScale;
-	    acceleration.y = signalsY.Sum() * accelerationScale;
+	    acceleration.x = (float) signalsX.Sum() * accelerationScale;
+	    acceleration.y = (float) signalsY.Sum() * accelerationScale;
 	    Move();
 	}
         
@@ -52,7 +55,7 @@ public class ballcontrol : MonoBehaviour
 
     void Move() {
 	velocity = Vector3.ClampMagnitude(velocity + acceleration * Time.fixedDeltaTime, maxVelocity);
-	this.transform.positon = this.transform.position + Vector3.ClampMagnitude(VelocityBounced(velocity), maxVelocity) * Time.fixedDeltaTime;
+	this.transform.position = this.transform.position + Vector3.ClampMagnitude(VelocityBounced(velocity), maxVelocity) * Time.fixedDeltaTime;
     }
 
     Vector3 VelocityBounced(Vector3 invelocity) {
