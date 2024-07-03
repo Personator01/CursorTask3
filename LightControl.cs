@@ -13,8 +13,10 @@ public class LightControl : MonoBehaviour
     GameObject bulb4;
     GameObject bulbLight4;
 
-    GameObject spot1;
-    GameObject spot2;
+    Light spot1;
+    Light spot2;
+
+    Color spotColor;
 
 
     public Material lightOffN;
@@ -29,8 +31,7 @@ public class LightControl : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-	spot1.SetActive(false);
-	spot2.SetActive(false);
+	DeactivateSpotlights();
     }
 
     // Update is called once per frame
@@ -49,15 +50,12 @@ public class LightControl : MonoBehaviour
 	bulb4 = GameObject.Find("lightsph4");
 	bulbLight4 = GameObject.Find("bulb4");
 
-	spot1 = GameObject.Find("spot1");
-	spot2 = GameObject.Find("spot2");
+	spot1 = GameObject.Find("spot1").GetComponent<Light>();
+	spot2 = GameObject.Find("spot2").GetComponent<Light>();
+	spotColor = spot1.color;
     }
 
-    public void Countdown() {
-	Debug.Log("A");
-	StartCoroutine(coCountdown());
-    }
-    IEnumerator coCountdown() {
+    public IEnumerator Countdown() {
 	bulb1.GetComponent<MeshRenderer>().material = lightOnN;
 	bulbLight1.SetActive(true);
 	yield return new WaitForSeconds(0.75f);
@@ -80,5 +78,36 @@ public class LightControl : MonoBehaviour
 	bulbLight3.SetActive(false);
 	bulb4.GetComponent<MeshRenderer>().material = lightOffG;
 	bulbLight4.SetActive(false);
+    }
+
+    public IEnumerator FlashGreen() {
+	while (true) {
+	    spot1.color = Color.black;
+	    spot2.color = Color.black;
+	    yield return new WaitForSeconds(0.3f)
+	    spot1.color = Color.green;
+	    spot2.color = color.green;
+	    yield return new WaitForSeconds(0.3f)
+	}
+    }
+    public IEnumerator FlashRed() {
+	while (true) {
+	    spot1.color = Color.black;
+	    spot2.color = Color.black;
+	    yield return new WaitForSeconds(0.3f)
+	    spot1.color = Color.red;
+	    spot2.color = color.red;
+	    yield return new WaitForSeconds(0.3f)
+	}
+    }
+
+    public void ActivateSpotlights() {
+	spot1.color = spotColor;
+	spot2.color = spotColor;
+	
+    }
+    public void DeactivateSpotlights() {
+	spot1.color = Color.black;
+	spot2.color = Color.black;
     }
 }
