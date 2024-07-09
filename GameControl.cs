@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Threading.Tasks;
 
 public class GameControl : MonoBehaviour
 {
@@ -11,13 +12,16 @@ public class GameControl : MonoBehaviour
 
     public Material ballDark;
     public Material ballLight;
+    
+    public Material targetM;
+    public Material targetL;
 
     public float preRunDuration = 1;
     public float preFeedbackDuration = 2.25f;
     public float feedbackDuration = 1;
     public float postFeedbackDuration = 1;
 
-    public float targetRadius = 0.5;
+    public float targetRadius = 0.5f;
 
     const float COUNTDOWN_DURATION = 2.25f;
 
@@ -26,14 +30,18 @@ public class GameControl : MonoBehaviour
     BallControl ballControl;
 
 
+
     void Awake() {
+	lightControl = GetComponent<LightControl>();
+	ballControl = GameObject.Find("Sphere").GetComponent<BallControl>();
     }
     // Start is called before the first frame update
     void Start()
     {
-	lightControl = GetComponent<LightControl>();
+	Debug.Log("a");
 
-	DisableTarget();
+	target.SetActive(false);
+	targetLight.SetActive(false);
 	cursorLight.SetActive(false);
 
 	StartCoroutine(ControlLoop());
@@ -46,7 +54,8 @@ public class GameControl : MonoBehaviour
     }
 
     IEnumerator ControlLoop() {
-	Task waitForConfig() = new Task(WaitForConfig);
+	Debug.Log("a");
+	Task waitForConfig = Task.Run(WaitForConfig);
 	while (!waitForConfig.IsCompleted) {
 	    yield return null;
 	}
@@ -54,9 +63,10 @@ public class GameControl : MonoBehaviour
 	SetConfig();
 	lightControl.SetConfig();
 	ballControl.SetConfig();
+	Debug.Log("b");
 	
 	while (true) {
-	    Task waitForStart = new Task(WaitForStart);
+	    Task waitForStart = Task.Run(WaitForStart);
 	    while (!waitForStart.IsCompleted) {
 		yield return null;
 	    }
@@ -73,34 +83,48 @@ public class GameControl : MonoBehaviour
     IEnumerator PreTrial() {
 	lightControl.DeactivateSpotlights();
 	yield return new WaitForSeconds(preFeedbackDuration - COUNTDOWN_DURATION);
+
+	float x_rand = Random.Range(xLowerBound, xUpperBound);
+	float y_rand = Random.Range(yLowerBound, yUpperBound);
+	target.transform.position = new Vector3(x_rand, y_rand, 0);
+	targetLight.transform.position = new Vector3(x_rand, y_rand, 0);
+	target.GetComponent<MeshRenderer>().material = targetL;
+	target.SetActive(true);
+
 	yield return lightControl.Countdown();
     }
+
+    public float xUpperBound = 7;
+    public float xLowerBound = -7;
+    public float yUpperBound = 4.5f;
+    public float yLowerBound = -4.5f;
 
     bool lastTrialSucceeded = false;
 
     IEnumerator Trial() {
 	ballControl.Reset();
-	lastTrialSucceeded = 0;
+	lastTrialSucceeded = false;
 	float time = 0;
 
-
-	EnableTarget();
+	targetLight.SetActive(true);
 	OnCursor();
 	ballControl.isTrialRunning = true;
-	lightControl.ActiveSpotlights();
 
 	while (time < feedbackDuration) {
-	    if (Vector3.Distance(target.transform.position, cursor.transform.position).magnitude <= targetRadius) {
-		lastTrialSucceeded = 1;
+	    if (Vector3.Distance(target.transform.position, cursor.transform.position) <= targetRadius) {
+		lastTrialSucceeded = true;
 		break;
 	    }
 	    time += Time.deltaTime;
 	    yield return null;
 	}
 
-	DisableTarget();
+	target.SetActive(false);
+	targetLight.SetActive(false);
+	target.GetComponent<MeshRenderer>().material = targetM;
 	OffCursor();
 	ballControl.isTrialRunning = false;
+	lightControl.ResetCountdown();
     }
 
     IEnumerator PostTrial() {
@@ -114,7 +138,7 @@ public class GameControl : MonoBehaviour
 	StopCoroutine(lightFlash);
     }
 
-    bool isContinue () {
+    bool IsContinue () {
 	return true;
     }
 
@@ -124,15 +148,6 @@ public class GameControl : MonoBehaviour
     void WaitForStart() {
     }
 
-    void EnableTarget() {
-	target.SetActive(true);
-	targetLight.SetActive(true);
-    }
-
-    void DisableTarget() {
-	target.SetActive(false);
-	targetLight.SetActive(false);
-    }
 
     void OffCursor() {
 	cursor.GetComponent<MeshRenderer>().material = ballDark;

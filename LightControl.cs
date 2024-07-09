@@ -40,6 +40,9 @@ public class LightControl : MonoBehaviour
         
     }
 
+    public void SetConfig() {
+    }
+
     void FindObjs() {
 	bulb1 = GameObject.Find("lightsph1");
 	bulbLight1 = GameObject.Find("bulb1");
@@ -84,20 +87,20 @@ public class LightControl : MonoBehaviour
 	while (true) {
 	    spot1.color = Color.black;
 	    spot2.color = Color.black;
-	    yield return new WaitForSeconds(0.3f)
+	    yield return new WaitForSeconds(0.3f);
 	    spot1.color = Color.green;
-	    spot2.color = color.green;
-	    yield return new WaitForSeconds(0.3f)
+	    spot2.color = Color.green;
+	    yield return new WaitForSeconds(0.3f);
 	}
     }
     public IEnumerator FlashRed() {
 	while (true) {
 	    spot1.color = Color.black;
 	    spot2.color = Color.black;
-	    yield return new WaitForSeconds(0.3f)
+	    yield return new WaitForSeconds(0.3f);
 	    spot1.color = Color.red;
-	    spot2.color = color.red;
-	    yield return new WaitForSeconds(0.3f)
+	    spot2.color = Color.red;
+	    yield return new WaitForSeconds(0.3f);
 	}
     }
 
