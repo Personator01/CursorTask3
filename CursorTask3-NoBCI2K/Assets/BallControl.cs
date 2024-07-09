@@ -9,6 +9,8 @@ public class BallControl : MonoBehaviour
 
     private GameControl gameControl;
 
+    GameObject mCursor;
+
     public int rollingAverageAmount;
 
     public double signalOffset = 0;
@@ -18,6 +20,7 @@ public class BallControl : MonoBehaviour
     public float coefficientOfDrag = 0.2f;
     public float coefficientOfGravity = 1;
     public double gravityCurveCoeff = 2;
+    public float attractionCurveCoefficient = 1;
 
     public double xUpperBound = 7;
     public double xLowerBound = -7;
@@ -25,6 +28,7 @@ public class BallControl : MonoBehaviour
     public double yLowerBound = -4.5;
 
     public float gravityDeadzone = 1;
+    public float slowdownWhenInDeadzone = 0.9f;
 
     double[] signalsX;
     double[] signalsY;
@@ -39,6 +43,7 @@ public class BallControl : MonoBehaviour
 
     void Awake() {
 	gameControl = GameObject.Find("Control").GetComponent<GameControl>();
+	mCursor = GameObject.Find("MCursor");
     }
     // Start is called before the first frame update
     void Start()
@@ -51,18 +56,25 @@ public class BallControl : MonoBehaviour
     {
 
 	if (isTrialRunning) {
-
-	    acceleration = GetMousePos() * accelerationScale;
-
+	    Vector3 difference = mCursor.transform.position - this.transform.position;
+	    acceleration = difference.normalized * (float) Math.Pow(difference.magnitude, attractionCurveCoefficient) * accelerationScale;
 	    Move();
 	} else {
 	    Vector3 difference = Vector3.zero - this.transform.position;
 	    if (difference.magnitude < gravityDeadzone) {
-		acceleration = difference.normalized * (float)(coefficientOfGravity * difference.magnitude);
+		acceleration = (difference.normalized * (float)(coefficientOfGravity * difference.magnitude));
+		velocity = velocity * slowdownWhenInDeadzone;
 	    } else {
 		acceleration = difference.normalized * (float)(coefficientOfGravity / Math.Pow(difference.magnitude, gravityCurveCoeff));
 	    }
 	    Move();
+	}
+
+	//For if the cursor escapes the box (corners) to keep it from flying off into infinity
+	if (this.transform.position.magnitude > 20) {
+	    this.transform.position = Vector3.zero;
+	    velocity = Vector3.zero;
+	    acceleration = Vector3.zero;
 	}
     }
 
@@ -72,25 +84,8 @@ public class BallControl : MonoBehaviour
     }
 
 
-    Vector3 GetMousePos() {
-	/**
-	    double signalX = 0;
-	    double signalY = 0;
-	    signalsX[signalIndex] = signalX + signalOffset;
-	    signalsY[signalIndex] = signalY + signalOffset;
-	    
-	    signalIndex = signalIndex + 1 >= rollingAverageAmount ? 0 : signalIndex + 1;
-	    */
-	Vector3 mpos = Input.mousePosition;
-	float x_adj = (mpos.x / Screen.width) - 0.5f;
-	float y_adj = (mpos.y / Screen.height) - 0.5f;
-	return new Vector3(x_adj, y_adj, 0);
-    }
-
-
     void Move() {
-	Vector3 drag_v = Vector3.Normalize(acceleration) * ((float) Math.Pow(velocity.magnitude, 2) * coefficientOfDrag);
-	drag_v = Vector3.zero;
+	Vector3 drag_v = Vector3.Normalize(velocity) * ((float) Math.Pow(velocity.magnitude, 2) * coefficientOfDrag);
 	acceleration = acceleration - drag_v;
 	velocity = velocity + acceleration * Time.fixedDeltaTime;
 	velocity = VelocityBounced(velocity);
@@ -117,7 +112,8 @@ public class BallControl : MonoBehaviour
 	} else if (nextPos.y < yLowerBound) {
 	    bounceNormal = Vector3.up;
 	}
-	return Vector3.Reflect(invelocity, bounceNormal) * coefficientOfRestitution;
+	return Vector3.Reflect(invelocity, bounceNormal) * 
+	    (bounceNormal == Vector3.zero ? 1 : coefficientOfRestitution);
     }
 
     public void SetConfig() {

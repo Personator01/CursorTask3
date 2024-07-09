@@ -22,6 +22,7 @@ public class GameControl : MonoBehaviour
     public float postFeedbackDuration = 1;
 
     public float targetRadius = 0.5f;
+    public float targetMinDistanceFromCenter = 2;
 
     const float COUNTDOWN_DURATION = 2.25f;
 
@@ -84,11 +85,13 @@ public class GameControl : MonoBehaviour
 	lightControl.DeactivateSpotlights();
 	yield return new WaitForSeconds(preFeedbackDuration - COUNTDOWN_DURATION);
 
-	float x_rand = Random.Range(xLowerBound, xUpperBound);
-	float y_rand = Random.Range(yLowerBound, yUpperBound);
+	float x_rand, y_rand;
+	do {
+	x_rand = Random.Range(xLowerBound, xUpperBound);
+	y_rand = Random.Range(yLowerBound, yUpperBound);
 	target.transform.position = new Vector3(x_rand, y_rand, 0);
+	} while (target.transform.position.magnitude < targetMinDistanceFromCenter);
 	targetLight.transform.position = new Vector3(x_rand, y_rand, 0);
-	target.GetComponent<MeshRenderer>().material = targetL;
 	target.SetActive(true);
 
 	yield return lightControl.Countdown();
@@ -107,6 +110,7 @@ public class GameControl : MonoBehaviour
 	float time = 0;
 
 	targetLight.SetActive(true);
+	target.GetComponent<MeshRenderer>().material = targetL;
 	OnCursor();
 	ballControl.isTrialRunning = true;
 
