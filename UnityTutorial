@@ -1,0 +1,17 @@
+===Setting Up BCI2000===
+
+Follow the instructions to download BCI2000.
+
+===Download Tutorial Project===
+Clone the CursorTask3 repository from GitHub. This contains two Unity projects, which are both version of a task in which the user attempts to guide a cursor to a target within a set amount of time. Open the CursorTask3-NoBCI2K project in Unity. When prompted to choose an editor version, choose either Unity Editor version 2022 or 2023. 
+
+===Setting Up UnityBCI2000===
+
+Download UnityBCI2000 from its GitHub page, https://github.com/neurotechcenter/UnityBCI2000. This tutorial is meant for use with version 2.0.0 of UnityBCI2000. Place the files BCI2000RemoteNETStandard.dll and UnityBCI2000.cs in the Assets directory of the Unity project.
+Open the project in the Unity Editor, and open the CursorTask scene.
+before.png
+cursorscene.png
+
+Add an empty GameObject called 'BCI2000'. This will hold the scripts for controlling BCI2000. 
+createobj.png
+Add the UnityBCI2000 component to the object.
