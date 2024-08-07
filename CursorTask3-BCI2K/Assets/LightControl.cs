@@ -40,8 +40,6 @@ public class LightControl : MonoBehaviour
         
     }
 
-    public void SetConfig() {
-    }
 
     void FindObjs() {
 	bulb1 = GameObject.Find("lightsph1");

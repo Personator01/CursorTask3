@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Threading.Tasks;
+using System;
+using BCI2000RemoteNET;
 
 public class GameControl : MonoBehaviour
 {
@@ -24,17 +26,37 @@ public class GameControl : MonoBehaviour
     public float targetRadius = 0.5f;
     public float targetMinDistanceFromCenter = 2;
 
+    public int n_trials = 10;
+
     const float COUNTDOWN_DURATION = 2.25f;
 
     LightControl lightControl;
 
     BallControl ballControl;
 
+    MCursorControl cursorControl;
 
+    UnityBCI2000 bci;
 
     void Awake() {
+	bci = GameObject.Find("BCI2000").GetComponent<UnityBCI2000>();
 	lightControl = GetComponent<LightControl>();
 	ballControl = GameObject.Find("Sphere").GetComponent<BallControl>();
+	cursorControl = GameObject.Find("MCursor").GetComponent<MCursorControl>();
+	bci.OnIdle(remote => {
+		remote.AddEvent("PreFeedback", 1);
+		remote.AddEvent("Feedback", 1);
+		remote.AddEvent("PostFeedback", 1);
+		remote.AddEvent("TargetHit", 1);
+		remote.AddEvent("Timeout", 1);
+		remote.AddEvent("TrialNumber", 16);
+
+		remote.AddParameter("Application:Task", "PreFeedbackDuration", preFeedbackDuration.ToString());
+		remote.AddParameter("Application:Task", "FeedbackDuration", feedbackDuration.ToString());
+		remote.AddParameter("Application:Task", "PostFeedbackDuration", postFeedbackDuration.ToString());
+		remote.AddParameter("Application:Task", "TargetRadius", targetRadius.ToString());
+		remote.AddParameter("Application:Task", "Trials", n_trials.ToString());
+		});
     }
     // Start is called before the first frame update
     void Start()
@@ -55,24 +77,23 @@ public class GameControl : MonoBehaviour
     }
 
     IEnumerator ControlLoop() {
-	Debug.Log("a");
-	Task waitForConfig = Task.Run(WaitForConfig);
-	while (!waitForConfig.IsCompleted) {
-	    yield return null;
-	}
-
-	SetConfig();
-	lightControl.SetConfig();
-	ballControl.SetConfig();
-	Debug.Log("b");
-	
 	while (true) {
-	    Task waitForStart = Task.Run(WaitForStart);
-	    while (!waitForStart.IsCompleted) {
-		yield return null;
+	    StartCoroutine(bci.PollSystemState(BCI2000Remote.SystemState.Resting));
+
+	    try {
+		SetConfig();
+		ballControl.SetConfig();
+		cursorControl.SetConfig();
+	    } catch (Exception e) {
+		continue;
 	    }
-	    while (IsContinue()) {
-		yield return new WaitForSeconds(preRunDuration);
+	
+	    int trials = 0;
+
+	    StartCoroutine(bci.PollSystemState(BCI2000Remote.SystemState.Running));
+
+	    yield return new WaitForSeconds(preRunDuration);
+	    while (IsContinue() && trials < n_trials) {
 		yield return PreTrial();
 		yield return Trial();
 		yield return PostTrial();
@@ -87,8 +108,8 @@ public class GameControl : MonoBehaviour
 
 	float x_rand, y_rand;
 	do {
-	x_rand = Random.Range(xLowerBound, xUpperBound);
-	y_rand = Random.Range(yLowerBound, yUpperBound);
+	x_rand = UnityEngine.Random.Range(xLowerBound, xUpperBound);
+	y_rand = UnityEngine.Random.Range(yLowerBound, yUpperBound);
 	target.transform.position = new Vector3(x_rand, y_rand, 0);
 	} while (target.transform.position.magnitude < targetMinDistanceFromCenter);
 	targetLight.transform.position = new Vector3(x_rand, y_rand, 0);
@@ -105,14 +126,15 @@ public class GameControl : MonoBehaviour
     bool lastTrialSucceeded = false;
 
     IEnumerator Trial() {
-	ballControl.Reset();
 	lastTrialSucceeded = false;
 	float time = 0;
 
 	targetLight.SetActive(true);
+
 	target.GetComponent<MeshRenderer>().material = targetL;
 	OnCursor();
 	ballControl.isTrialRunning = true;
+	cursorControl.isTrialRunning = true;
 
 	while (time < feedbackDuration) {
 	    if (Vector3.Distance(target.transform.position, cursor.transform.position) <= targetRadius) {
@@ -128,6 +150,7 @@ public class GameControl : MonoBehaviour
 	target.GetComponent<MeshRenderer>().material = targetM;
 	OffCursor();
 	ballControl.isTrialRunning = false;
+	cursorControl.isTrialRunning = false;
 	lightControl.ResetCountdown();
     }
 
@@ -143,14 +166,9 @@ public class GameControl : MonoBehaviour
     }
 
     bool IsContinue () {
-	return true;
+	return bci.Control.GetSystemState() == BCI2000Remote.SystemState.Running;
     }
 
-    void WaitForConfig() {
-    }
-
-    void WaitForStart() {
-    }
 
 
     void OffCursor() {
@@ -164,6 +182,26 @@ public class GameControl : MonoBehaviour
     }
 
     void SetConfig() {
+	try {
+	    preFeedbackDuration = float.Parse(bci.Control.GetParameter("PreFeedbackDuration"));
+	    feedbackDuration = float.Parse(bci.Control.GetParameter("FeedbackDuration"));
+	    postFeedbackDuration = float.Parse(bci.Control.GetParameter("PostFeedbackDuration"));
+	    targetRadius = float.Parse(bci.Control.GetParameter("TargetRadius"));
+	} catch (FormatException e) {
+	    bci.Control.Error("Could not parse one of PreFeedbackDuration, FeedbackDuration, PostFeedbackDuration, or TargetRadius as a float");
+	    throw e;
+	}
+	try {
+	    n_trials = int.Parse(bci.Control.GetParameter("Trials"));
+	} catch (FormatException e) {
+	    bci.Error("Could not parse Trials as an int");
+	    throw e;
+	}
+
+	if (preFeedbackDuration < COUNTDOWN_DURATION) {
+	    bci.Control.Error("preFeedbackDuration must be greater than or equal to 2.25");
+	    throw new Exception("preFeedbackDuration must be greater than or equal to 2.25");
+	}
     }
 }
 

@@ -30,25 +30,31 @@ public class BallControl : MonoBehaviour
     public float gravityDeadzone = 1;
     public float slowdownWhenInDeadzone = 0.9f;
 
-    double[] signalsX;
-    double[] signalsY;
-
     [System.NonSerialized]
     public bool isTrialRunning = false;
-    int signalIndex = 0;
 
     Vector3 acceleration = Vector3.zero;
     Vector3 velocity = Vector3.zero;
 
-
+    UnityBCI2000 bci;
     void Awake() {
+	bci = GameObject.Find("BCI2000").GetComponent<UnityBCI2000>();
 	gameControl = GameObject.Find("Control").GetComponent<GameControl>();
 	mCursor = GameObject.Find("MCursor");
+
+	bci.OnIdle(remote => {
+		remote.AddEvent("CursorPositionX", 16);
+		remote.AddEvent("CursorPositionY", 16);
+
+		remote.AddParameter("Application:Physics", "AccelerationScale", accelerationScale.ToString());
+		remote.AddParameter("Application:Physics", "CoeffOfRestitution", coefficientOfRestitution.ToString());
+		remote.AddParameter("Application:Physics", "CoeffOfDrag", coefficientOfDrag.ToString());
+		remote.AddParameter("Application:Physics", "AccelerationCurve", attractionCurveCoefficient.ToString());
+		});
     }
     // Start is called before the first frame update
     void Start()
     {
-	Reset();
     }
 
     // Update is called once per frame
@@ -76,11 +82,6 @@ public class BallControl : MonoBehaviour
 	    velocity = Vector3.zero;
 	    acceleration = Vector3.zero;
 	}
-    }
-
-    public void Reset() {
-	double[] signalsX = new double[rollingAverageAmount];
-	double[] signalsY = new double[rollingAverageAmount];
     }
 
 
@@ -117,5 +118,14 @@ public class BallControl : MonoBehaviour
     }
 
     public void SetConfig() {
+	try {
+	    accelerationScale = float.Parse(bci.Control.GetParameter("AccelerationScale"));
+	    coefficientOfRestitution = float.Parse(bci.Control.GetParameter("CoeffOfRestitution"));
+	    coefficientOfDrag = float.Parse(bci.Control.GetParameter("CoeffOfDrag"));
+	    attractionCurveCoefficient = float.Parse(bci.Control.GetParameter("AccelerationCurve"));
+	} catch (FormatException e) {
+	    bci.Control.Error("Could not parse one of AccelerationScale, CoeffOfRestitution, CoeffOfDrag, AccelerationCurve as float");
+	    throw e;
+	}
     }
 }

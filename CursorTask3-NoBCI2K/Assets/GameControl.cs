@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 using System.Threading.Tasks;
 
 public class GameControl : MonoBehaviour
@@ -24,17 +25,20 @@ public class GameControl : MonoBehaviour
     public float targetRadius = 0.5f;
     public float targetMinDistanceFromCenter = 2;
 
+    public int n_trials = 10;
+
     const float COUNTDOWN_DURATION = 2.25f;
 
     LightControl lightControl;
 
     BallControl ballControl;
 
-
+    MCursorControl cursorControl;
 
     void Awake() {
 	lightControl = GetComponent<LightControl>();
 	ballControl = GameObject.Find("Sphere").GetComponent<BallControl>();
+	cursorControl = GameObject.Find("MCursor").GetComponent<MCursorControl>();
     }
     // Start is called before the first frame update
     void Start()
@@ -55,24 +59,20 @@ public class GameControl : MonoBehaviour
     }
 
     IEnumerator ControlLoop() {
-	Debug.Log("a");
-	Task waitForConfig = Task.Run(WaitForConfig);
-	while (!waitForConfig.IsCompleted) {
-	    yield return null;
-	}
-
-	SetConfig();
-	lightControl.SetConfig();
-	ballControl.SetConfig();
-	Debug.Log("b");
-	
 	while (true) {
-	    Task waitForStart = Task.Run(WaitForStart);
-	    while (!waitForStart.IsCompleted) {
-		yield return null;
+
+	    try {
+		SetConfig();
+		ballControl.SetConfig();
+		cursorControl.SetConfig();
+	    } catch (Exception e) {
+		continue;
 	    }
-	    while (IsContinue()) {
-		yield return new WaitForSeconds(preRunDuration);
+	
+	    int trials = 0;
+
+	    yield return new WaitForSeconds(preRunDuration);
+	    while (IsContinue() && trials < n_trials) {
 		yield return PreTrial();
 		yield return Trial();
 		yield return PostTrial();
@@ -87,8 +87,8 @@ public class GameControl : MonoBehaviour
 
 	float x_rand, y_rand;
 	do {
-	x_rand = Random.Range(xLowerBound, xUpperBound);
-	y_rand = Random.Range(yLowerBound, yUpperBound);
+	x_rand = UnityEngine.Random.Range(xLowerBound, xUpperBound);
+	y_rand = UnityEngine.Random.Range(yLowerBound, yUpperBound);
 	target.transform.position = new Vector3(x_rand, y_rand, 0);
 	} while (target.transform.position.magnitude < targetMinDistanceFromCenter);
 	targetLight.transform.position = new Vector3(x_rand, y_rand, 0);
@@ -105,7 +105,6 @@ public class GameControl : MonoBehaviour
     bool lastTrialSucceeded = false;
 
     IEnumerator Trial() {
-	ballControl.Reset();
 	lastTrialSucceeded = false;
 	float time = 0;
 
@@ -113,6 +112,7 @@ public class GameControl : MonoBehaviour
 	target.GetComponent<MeshRenderer>().material = targetL;
 	OnCursor();
 	ballControl.isTrialRunning = true;
+	cursorControl.isTrialRunning = true;
 
 	while (time < feedbackDuration) {
 	    if (Vector3.Distance(target.transform.position, cursor.transform.position) <= targetRadius) {
@@ -128,6 +128,7 @@ public class GameControl : MonoBehaviour
 	target.GetComponent<MeshRenderer>().material = targetM;
 	OffCursor();
 	ballControl.isTrialRunning = false;
+	cursorControl.isTrialRunning = false;
 	lightControl.ResetCountdown();
     }
 
@@ -146,13 +147,6 @@ public class GameControl : MonoBehaviour
 	return true;
     }
 
-    void WaitForConfig() {
-    }
-
-    void WaitForStart() {
-    }
-
-
     void OffCursor() {
 	cursor.GetComponent<MeshRenderer>().material = ballDark;
 	cursorLight.SetActive(false);
@@ -164,6 +158,13 @@ public class GameControl : MonoBehaviour
     }
 
     void SetConfig() {
+	
+
+
+
+	if (preFeedbackDuration < COUNTDOWN_DURATION) {
+	    throw new Exception("preFeedbackDuration must be greater than or equal to 2.25");
+	}
     }
 }
 

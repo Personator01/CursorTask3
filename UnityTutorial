@@ -1,17 +1,376 @@
+<pre style="color:red">
+Red text blocks contain detailed instructions for the higher-level instructions preceding them.
+</pre>
+
+This example comprehensively demonstrates many of the capabilities of UnityBCI2000, and as such, is more than what is necessary for many usecases. If you just want to use BCI2000 as a logging backend for an existing Unity application, see the Barebones UnityBCI2000 tutorial.
+
+===Download Unity===
+
+Download Unity Hub from [https://unity3d.com Unity].
+
 ===Setting Up BCI2000===
 
-Follow the instructions to download BCI2000.
-
-===Download Tutorial Project===
-Clone the CursorTask3 repository from GitHub. This contains two Unity projects, which are both version of a task in which the user attempts to guide a cursor to a target within a set amount of time. Open the CursorTask3-NoBCI2K project in Unity. When prompted to choose an editor version, choose either Unity Editor version 2022 or 2023. 
+Follow the instructions starting with [https://www.bci2000.org/mediawiki/index.php/Programming_Howto:Install_Prerequisites] to download BCI2000. 
 
 ===Setting Up UnityBCI2000===
+Download UnityBCI2000 from its GitHub page, [https://github.com/neurotechcenter/UnityBCI2000]. 
+<pre style="color:red">
+Click on the "Releases" section on the right side of the page. This tutorial is intended to be used with UnityBCI2000 version 2.0.0, so scroll to that release and click on the files BCI2000RemoteNETStandard.dll and UnityBCI2000.cs to download them.
+</pre>
 
-Download UnityBCI2000 from its GitHub page, https://github.com/neurotechcenter/UnityBCI2000. This tutorial is meant for use with version 2.0.0 of UnityBCI2000. Place the files BCI2000RemoteNETStandard.dll and UnityBCI2000.cs in the Assets directory of the Unity project.
+===Download Tutorial Project===
+Download the CursorTask3 repository from [https://github.com/Personator01/CursorTask3 GitHub].
+<pre style="color:red">
+Either:
+	-Clone the git repository
+	-Download the respository directly from GitHub
+		-> Click the green "Code" button 
+		-> Select "Download ZIP"
+		-> Extract the zip file
+</pre>
+The download directory contains two versions of the CursorTask3 project. One, CursorTask3-BCI2K, contains an example implementation of the task with BCI2000 integration. The other, CursorTask3-NoBCI2K, contains the same task without BCI2000 integration. This tutorial is a step by step guide on turning that second project into the first. 
+
+===Opening the project===
 Open the project in the Unity Editor, and open the CursorTask scene.
-before.png
-cursorscene.png
+<pre style="color:red">
+Open Unity Hub.
+Click the "Add" button in the top right corner.
+Navigate to the CursorTask3 directory downloaded previously.
+Select the CursorTask3-NoBCI2K directory to add it to Unity Hub.
+Click the CursorTask3-NoBCI2K project in the Unity Hub.
+If prompted to select a version of Unity to use or install, select Unity 2022.3. The specific release number of Unity 2022.3 should not matter, so select the one labeled "LTS" for consistency.
+The lower panel (the asset browser) should already show the Assets/Scenes directory, which contains a single scene called SampleScene.
+Double-click SampleScene. This should open a scene with a box containing various lights and objects.
+</pre>
+If you wish to view the completed implementation, repeat these steps, but instead open the CursorTask3-BCI2K directory. Note that in order to use the completed implementation, you will still need to set the Operator Path value of the UnityBCI2000 component of the BCI2000 game object.
+
+===Adding UnityBCI2000 to the project===
+Add BCI2000RemoteNETStandard.dll and UnityBCI2000.cs to your project's assets.
+<pre style="color:red">
+In the Unity Editor's menu bar, click Assets > Open Containing Folder to open your project directory.
+Place the BCI2000RemoteNETStandard.dll and UnityBCI2000.cs files in the Assets folder.
+</pre>
 
 Add an empty GameObject called 'BCI2000'. This will hold the scripts for controlling BCI2000. 
-createobj.png
+<pre style="color:red">
+In the Unity Editor's menu bar, click GameObject > Create Empty to create an empty GameObject, and name it 'BCI2000'. (The object's specific name does not actually matter, it is only needed in order to reference it within other scripts)
+You will notice that it now appears in the Scene Hierarchy panel, on the left side of the screen.
+</pre>
+
 Add the UnityBCI2000 component to the object.
+<pre style="color:red">
+Click on the object in the Hierarchy panel. This will open it in the Inspector panel (the panel on the right side of the screen)
+In the inspector, below the new object's Transform component, click the "Add Component" button, which will open up a small window for adding components.
+Within this window, select Scripts > Unity BCI2000 to add the UnityBCI2000 component.
+</pre>
+
+===Configuring UnityBCI2000===
+The inspector panel now contains the configuration options for UnityBCI2000. Set the options as follows:
+
+<code>Start Local Operator</code>: Checked
+This will start the operator on your computer when the Unity scene initializes. If we were instead connecting to an already-running instance of BCI2000, or an instance on another computer, this box would be deselected.
+
+<code>Operator Path</code>: The path to the Operator executable. This will look something like this on Windows (C://path/to/bci2000/prog/Operator.exe)
+
+<code>Operator Address</code>: 127.0.0.1
+This is the address of the machine on which BCI2000 is running. Since we are running BCI2000 on the same computer as Unity, we leave it as 127.0.0.1, the loopback address.
+
+<code>Operator Port</code>: 3999
+This is the port on which BCI2000 is listening for commands. By default, it is 3999.
+
+<code>Start Modules</code>: Checked
+This tells BCI2000 to start the requested Signal Source, Signal Processing, and Application modules when the Unity scene initializes. Similarly to Start Local Operator, we would deselect this box if connecting to an already-running instance. 
+
+<code>Start With Scene</code>: Unchecked
+This tells BCI2000 to start a data collection run when the scene starts. Since we will be using BCI2000 itself to set experiment parameters, we will instead wait for BCI2000 to start from Unity, and thus will leave the box unchecked. 
+
+<code>Stop With Scene</code>: Unchecked
+This tells BCI2000 to stop collecting data when the scene stops. Since we will be controlling BCI2000 directly, rather than entirely through Unity, we will leave this unchecked.
+
+<code>Shutdown With Scene</code>: Unchecked
+This tells BCI2000 to shut down alongside the Unity scene. Whether or not this value is set ultimately doesn't matter much, especially if Start Local Operator is checked. The data will be saved whether or not BCI2000 shuts down. 
+
+===Setting References===
+In order for the game's scripts to communicate with BCI2000, they need to hold a reference to the UnityBCI2000 component.
+There are three scripts which will need to communicate with BCI2000. They are <code>GameControl.cs, BallControl.cs, and MCursorControl.cs</code>.
+These scripts are each located within the Assets directory of the Unity project. 
+<pre style="color:red">
+As before, select Assets > Open Containing Folder to open the project directory, then open the Assets folder. 
+For each script, open it in a text editor.
+Add a data member of type UnityBCI2000 to the class, like so:
+	UnityBCI2000 bci;
+Place the member definition above the Awake() method, for readability.
+Within the Awake() method, set this reference to the UnityBCI2000 component.
+	bci = GameObject.Find("BCI2000").GetComponent<UnityBCI2000>();
+</pre>
+Each of the three scripts should contain a section like this:
+<pre>
+	...
+	UnityBCI2000 bci;
+	void Awake() {
+		bci = GameObject.Find("BCI2000").GetComponent<UnityBCI2000>();
+		...
+</pre>
+
+===Adding Events===
+[https://www.bci2000.org/mediawiki/index.php/Programming_Reference:Events Events] are the primary way that non-signal experiment data is recorded in BCI2000. They are timestamped integer values which are encoded alongside the signal data in BCI2000 output files. Due to BCI2000's design, events must be added during a very specific part of its startup sequence, which is immediately after the BCI2000 operator starts, and before any of the modules start. As such, we cannot simply call <code>AddEvent()</code> whenever we want. Furthermore, the order in which Unity objects initialize is undefined, so it cannot even be guaranteed that calling <code>AddEvent</code> at a specific time will be consistent across multiple projects. As such, UnityBCI2000 provides a couple of methods for sending commands at well-defined points within the startup sequence. These two methods, <code>OnIdle</code> and <code>OnIdle</code> and <code>OnConnected</code> allow BCI2000 commands to be sent while the operator is in the state Idle (immediately before starting its modules) and when the operator is in the state Connected (after starting and connecting to the modules. Below is an example of using those methods to add and show an event in BCI2000.
+
+<pre>
+class Script : MonoBehaviour {
+    UnityBCI2000 bci;
+    void Awake() {
+	bci = GameObject.Find("BCI2000Object").GetComponent<UnityBCI2000>();
+	bci.OnIdle(remote => {
+	    remote.AddEvent("AnEvent", 32);
+	});
+    }
+    void Start() {
+	bci.OnConnected(remote => {
+	    remote.Visualize("AnEvent");
+	}
+    }
+}
+</pre>
+
+As seen above, <code>OnIdle</code> and <code>OnConnected</code> take a delegate (C#'s term for a callback/closure/functor/etc.) with a single parameter of type <code>BCI2000Remote</code> (in this case called "remote"). The lambda expression given to the call to <code>OnIdle</code> uses the method <code>BCI2000Remote.AddEvent()</code> to add an event called "AnEvent" with a bit width of 32 bits. The call to <code>OnConnected</code> tells BCI2000 to show the event's value in a graphical window. A description of the BCI2000Remote class can be found [https://www.bci2000.org/mediawiki/index.php/Contributions:BCI2000RemoteNET here], and API documentation can be found [https://bci2000.org/BCI2000RemoteNET/netstandard2/classBCI2000RemoteNET_1_1BCI2000Remote.html here].
+
+We will now add the events relevant to the Cursor Task. Open the <code>GameControl.cs</code> script, and modify its <code>Awake()</code> to add the events <code>PreFeedback</code>, <code>Feedback</code>, <code>PostFeedback</code>, <code>TargetHit</code>, and <code>Timeout</code> with bit width 1. Additionally, add the event <code>TrialNumber</code> with width 16. These will encode the task state and number of trials.
+
+Open the <code>BallControl.cs</code> script, and within the <code>Awake()</code> function, add events <code>CursorPositionX</code> and <code>CursorPositionY</code>, with width 16. Show these events in a visualization window with <code>Visualize</code>
+
+Your two scripts should now look like this: 
+<pre>
+>>> GameControl.cs 
+    ...
+    void Awake() {
+	...
+	bci.OnIdle(remote => {
+	    remote.AddEvent("PreFeedback", 1);
+	    remote.AddEvent("Feedback", 1);
+	    remote.AddEvent("PostFeedback", 1);
+	    remote.AddEvent("TargetHit", 1);
+	    remote.AddEvent("Timeout", 1);
+	    remote.AddEvent("TrialNumber", 16);
+	    });
+    }
+
+>>> BallControl.cs
+    ...
+    void Awake() {
+	bci.OnIdle(remote => {
+	    remote.AddEvent("CursorPositionX", 16);
+	    remote.AddEvent("CursorPositionY", 16);
+	    });
+	bci.OnConnected(remote => {
+	    remote.Visualize("CursorPositionX");
+	    remote.Visualize("CursorPositionY");
+    }
+</pre>
+
+
+
+===Using BCI2000 Parameters===
+====Adding Parameters====
+BCI2000's operator contains an interface for changing experiment parameters before running a task. By making use of this interface we can change the behavior of the task dynamically, without needing to rebuild the Unity project each time. In order to do this we need to define the parameters and add them to BCI2000, and later read their values after the operator has a chance to change them. <span style="color: red">This section is not strictly necessary. The project will function the same whether this is done or not, just without the option to change parameters at runtime. </span> 
+
+First, we define add parameters to BCI2000. Similarly to events, parameters must be added while the Operator is in the <code>Idle</code> state, so we add them inside of <code>OnIdle</code>, like below:
+<pre>
+public int someParameter = 5;
+void Awake() {
+    bci.OnIdle(remote => {
+	remote.AddParameter("Application:ParameterPlace", "SomeParameter", someParameter.ToString()); 
+    });
+}
+
+The first argument to the method is the section into which the parameter is placed, that is, on which tab and under which heading the parameter will appear within the Operator's parameter editor window (note that the section is not a scope, all parameter names must be unique). The second argument is the parameter name itself. The third argument is the default value of the parameter. We pass in the value of the parameter, so when it appears in the Operator, its default value is 5 (or another value if it has been changed in the Unity Editor). Note that all parameters are handled as strings, so we need to convert its value to a string when sending it.
+
+For <code>GameControl.cs</code>, we will add parameters corresponding to the Pre-Feedback, Feedback, and Post-Feedback durations, Target Radius, and Number of Trials.
+For <code>BallControl.cs</code>, we will add parameters corresponding to the Acceleration Scale, Coefficient of Restitution, Coefficient of Drag, and Attraction Curve Coefficient (how quickly the Ball moves to follow the Mouse Cursor).
+For <code>MCursorControl.cs</code>, we will add a parameter corresponding to the Rolling Maximum Amount.
+
+Your scripts should look like this:
+<pre>
+>>> GameControl.cs
+void Awake() {
+	bci = GameObject.Find("BCI2000").GetComponent<UnityBCI2000>();
+	...
+
+	bci.OnIdle(remote => {
+		remote.AddEvent("PreFeedback", 1);
+		...
+
+		remote.AddParameter("Application:Task", "PreFeedbackDuration", preFeedbackDuration.ToString());
+		remote.AddParameter("Application:Task", "FeedbackDuration", feedbackDuration.ToString());
+		remote.AddParameter("Application:Task", "PostFeedbackDuration", postFeedbackDuration.ToString());
+		remote.AddParameter("Application:Task", "TargetRadius", targetRadius.ToString());
+		remote.AddParameter("Application:Task", "Trials", n_trials.ToString());
+		});
+}
+
+>>> BallControl.cs
+void Awake() {
+	...
+	bci.OnIdle(remote => {
+		remote.AddParameter("Application:Physics", "AccelerationScale", accelerationScale.ToString());
+		remote.AddParameter("Application:Physics", "CoeffOfRestitution", coefficientOfRestitution.ToString());
+		remote.AddParameter("Application:Physics", "CoeffOfDrag", coefficientOfDrag.ToString());
+		remote.AddParameter("Application:Physics", "AccelerationCurve", attractionCurveCoefficient.ToString());
+		})}
+}
+
+>>> MCursorControl.cs
+void Awake() {
+	...
+
+	bci.OnIdle(remote => {
+		AddParameter("Application:Physics", "RollingMaximumAmount", rollingMaximumAmount.ToString());
+		});
+}
+		
+
+====Reading and Validating Parameters====
+Since we set the parameters within the BCI2000 operator, we need some way to read them back into Unity after they have been set. Specifically, we need to read them after the operator clicks the "Set Config" button within the BCI2000 Operator. How this timing synchronization is covered in the section [[Reacting to BCI2000 state changes]]. In this section we will cover reading and validating parameters.
+
+A method called <code>SetConfig</code> is provided in each of the scripts in which we added parameters previously. This method will be called after the operator changes parameters. In this method we will read in parameters and parse them into valid values. Using the same example parameter as before:
+<pre>
+void SetConfig() {
+    try {
+	someParameter = int.Parse(bci.Control.GetParameter("SomeParameter"));
+    } catch (FormatException e) {
+	bci.Error("Could not parse parameter SomeParameter as int");
+	throw e;
+    }
+}
+</pre>
+
+Note that since we are now working outside the BCI2000 startup sequence, we use <code>UnityBCI2000.Control</code> to call <code>BCI2000Remote</code> methods directly, rather than using <code>OnIdle</code> or <code>OnConnected</code>. We also wrap the call within a try/catch block so that we can report erroneous parameters back to the operator. This is optional, but it keeps your project from failing silently and is otherwise useful for doing things like distributing your Unity project as a standalone executable, where logging errors can only be done through the BCI2000 operator. You can also write a helper function which handles parsing and error reporting for you:
+
+<pre>
+int GetParseParameterInt(string paramName) {
+    int p_val = bci.Control.GetParameter("SomeParameter");
+    try {
+	someParameter = int.Parse(p_val);
+    } catch (FormatException e) {
+	bci.Error($"Could not parse parameter {paramName} (value {p_val}) as int");
+	throw e;
+    }
+}
+</pre>
+Unfortunately, since the version of C# used by Unity does not support type-parameterized parsing, you must write one of these helper functions for each type of data you want to store in a parameter (int, float, double, etc.)
+
+
+Read back the parameters added in the previous step. Your scripts should look like this:
+
+<pre>
+>>> GameControl.cs 
+void SetConfig() {
+	try {
+	   preFeedbackDuration = float.Parse(bci.Control.GetParameter("PreFeedbackDuration"));
+	   feedbackDuration = float.Parse(bci.Control.GetParameter("FeedbackDuration"));
+	   postFeedbackDuration = float.Parse(bci.Control.GetParameter("PostFeedbackDuration"));
+	   targetRadius = float.Parse(bci.Control.GetParameter("TargetRadius"));
+	} catch (FormatException e) {
+	   bci.Error("Could not parse one of PreFeedbackDuration, FeedbackDuration, PostFeedbackDuration, or TargetRadius as a float");
+	   throw e;
+	}
+	try {
+	   n_trials = int.Parse(bci.Control.GetParameter("Trials"));
+	} catch (FormatException e) {
+	   bci.Error("Could not parse Trials as an int");
+	   throw e;
+	}
+
+	if (preFeedbackDuration < COUNTDOWN_DURATION) {
+	   bci.Error("preFeedbackDuration must be greater than or equal to 2.25");
+	   throw new Exception("preFeedbackDuration must be greater than or equal to 2.25");
+	}
+    }
+
+>>> BallControl.cs
+    public void SetConfig() {
+	try {
+	   accelerationScale = float.Parse(bci.Control.GetParameter("AccelerationScale"));
+	   coefficientOfRestitution = float.Parse(bci.Control.GetParameter("CoeffOfRestitution"));
+	   coefficientOfDrag = float.Parse(bci.Control.GetParameter("CoeffOfDrag"));
+	   attractionCurveCoefficient = float.Parse(bci.Control.GetParameter("AccelerationCurve"));
+	} catch (FormatException e) {
+	   bci.Error("Could not parse one of AccelerationScale, CoeffOfRestitution, CoeffOfDrag, AccelerationCurve as float");
+	   throw e;
+	}
+    }
+
+>>> MCursorControl.cs
+public void SetConfig() {
+    try {
+       rollingMaximumAmount = int.Parse(bci.Control.GetParameter("RollingMaximumAmount"));
+    } catch (FormatException e) {
+       bci.Error("Could not parse parameter RollingMaximumAmount as int");
+       throw e;
+    }
+    signalsX = new int[rollingMaximumAmount];
+    signalsY = new int[rollingMaximumAmount];
+}
+</pre>
+
+Note that in <code>GameControl.cs</code>, we also verify that the Pre-Feedback Duration is longer than the duration of the countdown that happens before each trial, and report errors to BCI2000 accordingly.
+
+
+===Reacting to BCI2000 state changes===
+Since we will be controlling the Unity task from BCI2000, we need some way to wait for BCI2000 to be in a specific state, for example, waiting for the operator to click Start and put the Operator Module into the Running state. UnityBCI2000 provides a method for this, the <code>UnityBCI2000.PollSystemState</code> method. In order to wait for the Operator Module to be in the <code>Running</code> state:
+<pre>
+StartCoroutine(bci.PollSystemState(BCI2000Remote.SystemState.Running));
+</pre>
+This will check once per frame whether or not the Operator is in the <code>Running</code> state, and only continue once BCI2000 is in the <code>Running</code> state. Note that since <code>SystemState</code> is a member of <code>BCI2000Remote</code>, we also need to add a <code>using BCI2000RemoteNET</code> statement to our script.
+
+In our case, we need to react to the operator setting the parameters, starting the data collection, and stopping the data collection. These correspond to the Operator Module entering the <code>Resting</code> state, entering the <code>Running</code> state, and exiting the <code>Running</code> state.
+
+In the <code>GameControl.cs</code> script, we will wait for the system to be in the <code>Resting</code> state at the start of the <code>ControLoop</code> method, and wait for the system to be in the <code>Running</code> state immediately before the entering the trial loop. 
+<pre>
+>>> GameControl.cs
+
+    IEnumerator ControlLoop() {
+	while (True) {
+<pre style="color: red">
+	   StartCoroutine(bci.PollSystemState(BCI2000Remote.SystemState.Resting));
+</pre>
+
+	   try {
+		...
+	   } catch (Exception e) {
+		continue;
+	   }
+	
+	   int trials = 0;
+
+</pre>
+<pre style="color: red">
+	   StartCoroutine(bci.PollSystemState(BCI2000Remote.SystemState.Running));
+</pre>
+
+	   yield return new WaitForSeconds(preRunDuration);
+	   while (IsContinue() && trials < n_trials) {
+		...
+	   }
+	}
+    }
+</pre>
+
+We also need to check for the operator stopping data collection, so we modify the <code>IsContinue()</code> method.
+
+<pre>
+bool IsContinue () {
+	return bci.Control.GetSystemState() == BCI2000Remote.SystemState.Running;
+}
+</pre>
+
+Remember to add <code>using BCI2000RemoteNET;</code> to the top of the script, so you can access the <code>SystemState</code> enum.
+
+===Reading the control signal===
+We will be using the control signal to control the cursor. Open the <code>MCursorControl.cs</code> script.
+
+The commented out section of the <code>Update()</code> method contains the code required to turn the control signal waveform coming from the Signal Source and Signal Processing modules into screen coordinates. 
+Uncomment the commented part and delete the line <code>Ray r = camera.ScreenPointToRay(Input.MousePosition);</code>.
+Change the <code>double signalX = 0;</code> and <code>double signalY = 0;</code> to use UnityBCI2000's <code>GetCurrentSignal</code> method.
+
+===Sending events back to BCI2000===
+

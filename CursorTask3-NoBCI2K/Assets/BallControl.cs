@@ -30,10 +30,7 @@ public class BallControl : MonoBehaviour
     public float gravityDeadzone = 1;
     public float slowdownWhenInDeadzone = 0.9f;
 
-    double[] signalsX;
-    double[] signalsY;
-
-    [System.NonSerialized]
+   [System.NonSerialized]
     public bool isTrialRunning = false;
     int signalIndex = 0;
 
@@ -48,7 +45,6 @@ public class BallControl : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-	Reset();
     }
 
     // Update is called once per frame
@@ -77,12 +73,6 @@ public class BallControl : MonoBehaviour
 	    acceleration = Vector3.zero;
 	}
     }
-
-    public void Reset() {
-	double[] signalsX = new double[rollingAverageAmount];
-	double[] signalsY = new double[rollingAverageAmount];
-    }
-
 
     void Move() {
 	Vector3 drag_v = Vector3.Normalize(velocity) * ((float) Math.Pow(velocity.magnitude, 2) * coefficientOfDrag);
