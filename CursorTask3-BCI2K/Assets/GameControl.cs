@@ -50,6 +50,8 @@ public class GameControl : MonoBehaviour
 		remote.AddEvent("TargetHit", 1);
 		remote.AddEvent("Timeout", 1);
 		remote.AddEvent("TrialNumber", 16);
+		remote.AddEvent("TargetPositionX", 16);
+		remote.AddEvent("TargetPositionY", 16);
 
 		remote.AddParameter("Application:Task", "PreFeedbackDuration", preFeedbackDuration.ToString());
 		remote.AddParameter("Application:Task", "FeedbackDuration", feedbackDuration.ToString());
@@ -58,7 +60,7 @@ public class GameControl : MonoBehaviour
 		remote.AddParameter("Application:Task", "Trials", n_trials.ToString());
 		});
     }
-    // Start is called before the first frame update
+    // Start is called before the first frame updateistria
     void Start()
     {
 	Debug.Log("a");
@@ -88,12 +90,13 @@ public class GameControl : MonoBehaviour
 		continue;
 	    }
 	
-	    int trials = 0;
+	    uint trials = 0;
 
 	    StartCoroutine(bci.PollSystemState(BCI2000Remote.SystemState.Running));
 
 	    yield return new WaitForSeconds(preRunDuration);
 	    while (IsContinue() && trials < n_trials) {
+		bci.Control.SetEvent("TrialNumber", trials + 1);
 		yield return PreTrial();
 		yield return Trial();
 		yield return PostTrial();
@@ -103,6 +106,7 @@ public class GameControl : MonoBehaviour
 
 
     IEnumerator PreTrial() {
+	bci.Control.SetEvent("PreFeedback", 1);
 	lightControl.DeactivateSpotlights();
 	yield return new WaitForSeconds(preFeedbackDuration - COUNTDOWN_DURATION);
 
@@ -114,8 +118,11 @@ public class GameControl : MonoBehaviour
 	} while (target.transform.position.magnitude < targetMinDistanceFromCenter);
 	targetLight.transform.position = new Vector3(x_rand, y_rand, 0);
 	target.SetActive(true);
+	bci.Control.SetEvent("TargetPositionX", (uint) ((target.transform.position.x + 7) * 1000));
+	bci.Control.SetEvent("TargetPositionY", (uint) ((target.transform.position.y + 4.5) * 1000));
 
 	yield return lightControl.Countdown();
+	bci.Control.SetEvent("PreFeedback", 0);
     }
 
     public float xUpperBound = 7;
@@ -126,6 +133,7 @@ public class GameControl : MonoBehaviour
     bool lastTrialSucceeded = false;
 
     IEnumerator Trial() {
+	bci.Control.SetEvent("Feedback", 1);
 	lastTrialSucceeded = false;
 	float time = 0;
 
@@ -152,9 +160,16 @@ public class GameControl : MonoBehaviour
 	ballControl.isTrialRunning = false;
 	cursorControl.isTrialRunning = false;
 	lightControl.ResetCountdown();
+	bci.Control.SetEvent("Feedback", 0);
+	if (lastTrialSucceeded) {
+	    bci.Control.PulseEvent("TargetHit", 1);
+	} else {
+	    bci.Control.PulseEvent("Timeout", 1);
+	}
     }
 
     IEnumerator PostTrial() {
+	bci.Control.SetEvent("PostFeedback", 1);
 	Coroutine lightFlash;
 	if (lastTrialSucceeded) {
 	    lightFlash = StartCoroutine(lightControl.FlashGreen());
@@ -163,6 +178,7 @@ public class GameControl : MonoBehaviour
 	}
 	yield return new WaitForSeconds(postFeedbackDuration);
 	StopCoroutine(lightFlash);
+	bci.Control.SetEvent("PostFeedback", 0);
     }
 
     bool IsContinue () {
@@ -194,7 +210,7 @@ public class GameControl : MonoBehaviour
 	try {
 	    n_trials = int.Parse(bci.Control.GetParameter("Trials"));
 	} catch (FormatException e) {
-	    bci.Error("Could not parse Trials as an int");
+	    bci.Control.Error("Could not parse Trials as an int");
 	    throw e;
 	}
 

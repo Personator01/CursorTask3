@@ -65,6 +65,8 @@ public class BallControl : MonoBehaviour
 	    Vector3 difference = mCursor.transform.position - this.transform.position;
 	    acceleration = difference.normalized * (float) Math.Pow(difference.magnitude, attractionCurveCoefficient) * accelerationScale;
 	    Move();
+	    bci.Control.SetEvent("CursorPositionX", (uint) ((transform.position.x + 7) * 1000));
+	    bci.Control.SetEvent("CursorPositionY", (uint) ((transform.position.y + 4.5) * 1000));
 	} else {
 	    Vector3 difference = Vector3.zero - this.transform.position;
 	    if (difference.magnitude < gravityDeadzone) {

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
-using System;
+using System; 
+using System.Linq;
 using UnityEngine;
 
 public class MCursorControl : MonoBehaviour
@@ -14,8 +15,8 @@ public class MCursorControl : MonoBehaviour
     int rollingMaximumAmount = 10;
     int signalIndex = 0;
 
-    int[] signalsX;
-    int[] signalsY;
+    double[] signalsX;
+    double[] signalsY;
 
     void Awake() {
     }
@@ -26,8 +27,8 @@ public class MCursorControl : MonoBehaviour
     }
 
     public void SetConfig() {
-	signalsX = new int[rollingMaximumAmount];
-	signalsY = new int[rollingMaximumAmount];
+	signalsX = new double[rollingMaximumAmount];
+	signalsY = new double[rollingMaximumAmount];
     }
 
     // Update is called once per frame
@@ -41,13 +42,13 @@ public class MCursorControl : MonoBehaviour
 	/**
 	    double signalX = 0;
 	    double signalY = 0;
-	    signalsX[signalIndex] = signalX + signalOffset;
-	    signalsY[signalIndex] = signalY + signalOffset;
+	    signalsX[signalIndex] = signalX;
+	    signalsY[signalIndex] = signalY;
 	    
 	    signalIndex = signalIndex + 1 >= rollingMaximumAmount ? 0 : signalIndex + 1;
-	    int max_x = signalsX.Max();
-	    int max_y = signalsY.Max();
-	    Ray r = camera.ScreenPointToRay(max_x * Screen.width, max_y * Screen.height);
+	    double max_x = signalsX.Max();
+	    double max_y = signalsY.Max();
+	    Ray r = camera.ScreenPointToRay((float) max_x * Screen.width, (float) max_y * Screen.height);
 	    */
 	Ray r = camera.ScreenPointToRay(Input.mousePosition);
 	float p;

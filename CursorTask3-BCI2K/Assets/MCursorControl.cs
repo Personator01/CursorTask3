@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System;
+using System.Linq;
 using UnityEngine;
 
 public class MCursorControl : MonoBehaviour
@@ -14,8 +15,8 @@ public class MCursorControl : MonoBehaviour
     int rollingMaximumAmount = 10;
     int signalIndex = 0;
 
-    int[] signalsX;
-    int[] signalsY;
+    double[] signalsX;
+    double[] signalsY;
 
     UnityBCI2000 bci;
 
@@ -39,27 +40,29 @@ public class MCursorControl : MonoBehaviour
 	    bci.Control.Error("Could not parse parameter RollingMaximumAmount as int");
 	    throw e;
 	}
-	signalsX = new int[rollingMaximumAmount];
-	signalsY = new int[rollingMaximumAmount];
+	signalsX = new double[rollingMaximumAmount];
+	signalsY = new double[rollingMaximumAmount];
     }
 
     // Update is called once per frame
     void Update()
     {
-	this.transform.position = GetPos();
+	if (isTrialRunning) {
+	    this.transform.position = GetPos();
+	}
     }
 
 
     Vector3 GetPos() {
-	    double signalX = 0;
-	    double signalY = 0;
-	    signalsX[signalIndex] = signalX + signalOffset;
-	    signalsY[signalIndex] = signalY + signalOffset;
-	    
-	    signalIndex = signalIndex + 1 >= rollingMaximumAmount ? 0 : signalIndex + 1;
-	    int max_x = signalsX.Max();
-	    int max_y = signalsY.Max();
-	    Ray r = camera.ScreenPointToRay(max_x * Screen.width, max_y * Screen.height);
+	double signalX = bci.Control.GetSignal(1, bci.CurrentSampleOffset());
+	double signalY = bci.Control.GetSignal(2, bci.CurrentSampleOffset());
+	signalsX[signalIndex] = signalX;
+	signalsY[signalIndex] = signalY;
+	
+	signalIndex = signalIndex + 1 >= rollingMaximumAmount ? 0 : signalIndex + 1;
+	double max_x = signalsX.Max();
+	double max_y = signalsY.Max();
+	Ray r = camera.ScreenPointToRay(new Vector3((float) max_x * Screen.width, (float) max_y * Screen.height, 0));
 	float p;
 	if (!plane.Raycast(r, out p)) {
 	    throw new Exception("error casting ray to plane, invalid mouse position?");

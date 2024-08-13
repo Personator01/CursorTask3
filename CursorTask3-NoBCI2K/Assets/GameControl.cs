@@ -69,7 +69,7 @@ public class GameControl : MonoBehaviour
 		continue;
 	    }
 	
-	    int trials = 0;
+	    uint trials = 0;
 
 	    yield return new WaitForSeconds(preRunDuration);
 	    while (IsContinue() && trials < n_trials) {

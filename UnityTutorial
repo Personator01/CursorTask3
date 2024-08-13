@@ -134,7 +134,7 @@ class Script : MonoBehaviour {
 
 As seen above, <code>OnIdle</code> and <code>OnConnected</code> take a delegate (C#'s term for a callback/closure/functor/etc.) with a single parameter of type <code>BCI2000Remote</code> (in this case called "remote"). The lambda expression given to the call to <code>OnIdle</code> uses the method <code>BCI2000Remote.AddEvent()</code> to add an event called "AnEvent" with a bit width of 32 bits. The call to <code>OnConnected</code> tells BCI2000 to show the event's value in a graphical window. A description of the BCI2000Remote class can be found [https://www.bci2000.org/mediawiki/index.php/Contributions:BCI2000RemoteNET here], and API documentation can be found [https://bci2000.org/BCI2000RemoteNET/netstandard2/classBCI2000RemoteNET_1_1BCI2000Remote.html here].
 
-We will now add the events relevant to the Cursor Task. Open the <code>GameControl.cs</code> script, and modify its <code>Awake()</code> to add the events <code>PreFeedback</code>, <code>Feedback</code>, <code>PostFeedback</code>, <code>TargetHit</code>, and <code>Timeout</code> with bit width 1. Additionally, add the event <code>TrialNumber</code> with width 16. These will encode the task state and number of trials.
+We will now add the events relevant to the Cursor Task. Open the <code>GameControl.cs</code> script, and modify its <code>Awake()</code> to add the events <code>PreFeedback</code>, <code>Feedback</code>, <code>PostFeedback</code>, <code>TargetHit</code>, and <code>Timeout</code> with bit width 1. Additionally, add the events <code>TrialNumber</code>, <code>TargetPositionX</code>, and <code>TargetPositionY</code> with width 16. These will encode the task state and number of trials.
 
 Open the <code>BallControl.cs</code> script, and within the <code>Awake()</code> function, add events <code>CursorPositionX</code> and <code>CursorPositionY</code>, with width 16. Show these events in a visualization window with <code>Visualize</code>
 
@@ -151,6 +151,8 @@ Your two scripts should now look like this:
 	    remote.AddEvent("TargetHit", 1);
 	    remote.AddEvent("Timeout", 1);
 	    remote.AddEvent("TrialNumber", 16);
+	    remote.AddEvent("TargetPositionX", 16);
+	    remote.AddEvent("TargetPositionY", 16);
 	    });
     }
 
@@ -368,9 +370,127 @@ Remember to add <code>using BCI2000RemoteNET;</code> to the top of the script, s
 ===Reading the control signal===
 We will be using the control signal to control the cursor. Open the <code>MCursorControl.cs</code> script.
 
-The commented out section of the <code>Update()</code> method contains the code required to turn the control signal waveform coming from the Signal Source and Signal Processing modules into screen coordinates. 
+The commented out section of the <code>GetPos()</code> method contains the code required to turn the control signal waveform coming from the Signal Source and Signal Processing modules into screen coordinates. 
 Uncomment the commented part and delete the line <code>Ray r = camera.ScreenPointToRay(Input.MousePosition);</code>.
-Change the <code>double signalX = 0;</code> and <code>double signalY = 0;</code> to use UnityBCI2000's <code>GetCurrentSignal</code> method.
+Change the <code>double signalX = 0;</code> and <code>double signalY = 0;</code> to. 
+
+Your <code>GetPos()</code> method should look like this:
+<pre>
+    Vector3 GetPos() {
+	double signalX = bci.Control.GetSignal(1, bci.CurrentSampleOffset());
+	double signalY = bci.Control.GetSignal(2, bci.CurrentSampleOffset());
+	signalsX[signalIndex] = signalX;
+	signalsY[signalIndex] = signalY;
+	
+	signalIndex = signalIndex + 1 >= rollingMaximumAmount ? 0 : signalIndex + 1;
+	double max_x = signalsX.Max();
+	double max_y = signalsY.Max();
+	Ray r = camera.ScreenPointToRay(new Vector3((float) max_x * Screen.width, (float) max_y * Screen.height, 0));
+	float p;
+	if (!plane.Raycast(r, out p)) {
+	   throw new Exception("error casting ray to plane, invalid mouse position?");
+	}
+	return r.GetPoint(p);
+    }
+</pre>
+
+Note the use of the <code>UnityBCI2000.CurrentSampleOffset()</code> method. This is a special method which gets the offset into the current block such that the sample is exactly one block length later than when it was collected by the hardware. This is to normalize the latency between when the hardware collects the signal and the software receives the signal, due to how BCI2000 processes data in blocks.
 
 ===Sending events back to BCI2000===
 
+The primary way to communicate game state back to BCI2000 is via the use of Events, which are integer values encoded alongside the signal data.
+
+We will send the events that we added in a previous section.
+
+First, we will send back the current position of the cursor. Within the <code>BallControl.cs</code> script, within the <code>Update()</code> method, immediately after <code>Move()</code> is called, set the <code>CursorPositionX</code> and <code>CursorPositionY</code> events. 
+
+<pre>
+>>> BallControl.cs
+void Update() {
+    ...
+    if (isTrialRunning) {
+	...
+	Move();
+	bci.Control.SetEvent("CursorPositionX", (uint) ((transform.position.x + 7) * 1000));
+	bci.Control.SetEvent("CursorPositionY", (uint) ((transform.position.y + 4.5) * 1000));
+    }
+    ...
+</pre>
+
+Notice that we transform the value of the cursor's position. This is because events in BCI2000 are represented as unsigned integers, so, for example, the cursor's range of movement in the x axis, -7 to 7, would not be directly representable within a BCI2000 event, so we add 7 so it is positive, and multiply by 1000 so that we have a more precise measure of the cursor's position. The range of [-7,7] becomes [0,14000].
+
+
+We will also set the events corresponding to the game state within <code>GameControl.cs</code>. First we will set <code>PreFeedback</code>, <code>Feedback</code>, and <code>PostFeedback</code> to represent when the game is in these states. To do this, at the beginning and end of <code>PreTrial()</code>, <code>Trial()</code>, and <code>PostTrial()</code>, we will set the corresponding event values to 1 and 0, respectively.
+
+<pre>
+>>> GameControl.cs
+IEnumerator PreTrial() {
+    bci.Control.SetEvent("PreFeedback", 1);
+    ...
+    bci.Control.SetEvent("PreFeedback", 0);
+}
+IEnumerator Trial() {
+    bci.Control.SetEvent("Feedback", 1);
+    ...
+    bci.Control.SetEvent("Feedback", 0);
+}
+IEnumerator PostTrial() {
+    bci.Control.SetEvent("PostFeedback", 1);
+    ...
+    bci.Control.SetEvent("PostFeedback", 0);
+}
+</pre>
+
+We will also set the events which happen at the end of each trial. The <code>TargetHit</code> event is activated when the subject hits the target, and the <code>Timeout</code> event is activated when the subject runs out of time.
+
+<pre>
+>>> GameControl.cs
+IEnumerator Trial() {
+    ...
+    bci.Control.SetEvent("Feedback", 0);
+    if (lastTrialSucceeded) {
+	bci.Control.PulseEvent("TargetHit", 1);
+    } else {
+	bci.Control.PulseEvent("Timeout", 1);
+    }
+}
+
+Notice that we use <code>BCI2000Remote.PulseEvent()</code> rather than <code>BCI2000Remote.SetEvent()</code>. This results in the event being set to the value <code>1</code> for exactly one sample duration, then returning to zero.
+
+We will also record the position of the target. Similarly to the cursor, we will transform the target's coordinates to be a positive integer.
+
+<pre>
+>>> GameControl.cs
+IEnumerator PreTrial() {
+    ...
+    target.SetActive(true);
+    bci.Control.SetEvent("TargetPositionX", (uint) ((target.transform.position.x + 7) * 1000));
+    bci.Control.SetEvent("TargetPositionY", (uint) ((target.transform.position.y + 4.5) * 1000));
+    ...
+}
+</pre>
+
+The last event we need to set is the trial number.
+
+<pre>
+IEnumerator ControlLoop() {
+    ...
+    while (IsContinue() && trials < n_trials) {
+	bci.Control.SetEvent("TrialNumber", trials + 1);
+	...
+    }
+}
+
+===Unity Player Settings===
+Additionally, due to how Unity detects changes in BCI2000 state, it must be allowed to run in the background.
+
+<pre style="color:red">
+In the Unity menu bar:
+    Edit > Project Settings > Player > Resolution and Presentation
+Check the "Run In Background" box.
+</pre>
+
+
+===Usage===
+
+Now, when the Unity application runs, BCI2000 will open. From here, parameters can be set via the Config window, then clicking Set Config and Start will start data collection.
