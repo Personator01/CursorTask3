@@ -53,12 +53,6 @@ public class GameControl : MonoBehaviour
 		remote.AddEvent("TargetPositionX", 16);
 		remote.AddEvent("TargetPositionY", 16);
 		remote.SetParameter("ModulateAmplitude", "1");
-
-		remote.AddParameter("Application:Task", "PreFeedbackDuration", preFeedbackDuration.ToString());
-		remote.AddParameter("Application:Task", "FeedbackDuration", feedbackDuration.ToString());
-		remote.AddParameter("Application:Task", "PostFeedbackDuration", postFeedbackDuration.ToString());
-		remote.AddParameter("Application:Task", "TargetRadius", targetRadius.ToString());
-		remote.AddParameter("Application:Task", "Trials", n_trials.ToString());
 		});
     }
     // Start is called before the first frame updateistria
@@ -81,8 +75,6 @@ public class GameControl : MonoBehaviour
 
     IEnumerator ControlLoop() {
 	while (true) {
-	    StartCoroutine(bci.PollSystemState(BCI2000Remote.SystemState.Resting));
-
 	    try {
 		SetConfig();
 		ballControl.SetConfig();
@@ -92,8 +84,6 @@ public class GameControl : MonoBehaviour
 	    }
 	
 	    uint trials = 0;
-
-	    StartCoroutine(bci.PollSystemState(BCI2000Remote.SystemState.Running));
 
 	    yield return new WaitForSeconds(preRunDuration);
 	    while (IsContinue() && trials < n_trials) {
@@ -183,7 +173,6 @@ public class GameControl : MonoBehaviour
     }
 
     bool IsContinue () {
-	return bci.Control.GetSystemState() == BCI2000Remote.SystemState.Running;
     }
 
 
@@ -199,26 +188,6 @@ public class GameControl : MonoBehaviour
     }
 
     void SetConfig() {
-	try {
-	    preFeedbackDuration = float.Parse(bci.Control.GetParameter("PreFeedbackDuration"));
-	    feedbackDuration = float.Parse(bci.Control.GetParameter("FeedbackDuration"));
-	    postFeedbackDuration = float.Parse(bci.Control.GetParameter("PostFeedbackDuration"));
-	    targetRadius = float.Parse(bci.Control.GetParameter("TargetRadius"));
-	} catch (FormatException e) {
-	    bci.Control.Error("Could not parse one of PreFeedbackDuration, FeedbackDuration, PostFeedbackDuration, or TargetRadius as a float");
-	    throw e;
-	}
-	try {
-	    n_trials = int.Parse(bci.Control.GetParameter("Trials"));
-	} catch (FormatException e) {
-	    bci.Control.Error("Could not parse Trials as an int");
-	    throw e;
-	}
-
-	if (preFeedbackDuration < COUNTDOWN_DURATION) {
-	    bci.Control.Error("preFeedbackDuration must be greater than or equal to 2.25");
-	    throw new Exception("preFeedbackDuration must be greater than or equal to 2.25");
-	}
     }
 }
 

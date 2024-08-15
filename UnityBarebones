@@ -2,7 +2,7 @@
 Red text blocks contain detailed instructions for the higher-level instructions preceding them.
 </pre>
 
-This example comprehensively demonstrates many of the capabilities of UnityBCI2000, and as such, is more than what is necessary for many usecases. If you just want to use BCI2000 as a logging backend for an existing Unity application, see the Barebones UnityBCI2000 tutorial.
+This tutorial goes over how to use BCI2000 as a logging service for an existing Unity project. For a more comprehensive tutorial on integrating Unity with BCI2000, see [User Tutorial:UnityBCI2000]. This tutorial will use a sample Unity project, the same as the full tutorial.
 
 ===Download Unity===
 
@@ -42,7 +42,7 @@ If prompted to select a version of Unity to use or install, select Unity 2022.3.
 The lower panel (the asset browser) should already show the Assets/Scenes directory, which contains a single scene called SampleScene.
 Double-click SampleScene. This should open a scene with a box containing various lights and objects.
 </pre>
-If you wish to view the completed implementation, repeat these steps, but instead open the CursorTask3-BCI2K directory. Note that in order to use the completed implementation, you will still need to set the Operator Path value of the UnityBCI2000 component of the BCI2000 game object.
+If you wish to view the completed implementation, repeat these steps, but instead open the CursorTask3-BCI2K-Barebones directory. Note that in order to use the completed implementation, you will still need to set the Operator Path value of the UnityBCI2000 component of the BCI2000 game object.
 
 ===Adding UnityBCI2000 to the project===
 Add BCI2000RemoteNETStandard.dll and UnityBCI2000.cs to your project's assets.
@@ -85,11 +85,11 @@ This is the port on which BCI2000 is listening for commands. By default, it is 3
 
 This tells BCI2000 to start the requested Signal Source, Signal Processing, and Application modules when the Unity scene initializes. Similarly to Start Local Operator, we would deselect this box if connecting to an already-running instance. 
 
-<code>Start With Scene</code>: Unchecked
+<code>Start With Scene</code>: Checked
 
 This tells BCI2000 to start a data collection run when the scene starts. Since we will be using BCI2000 itself to set experiment parameters, we will instead wait for BCI2000 to start from Unity, and thus will leave the box unchecked. 
 
-<code>Stop With Scene</code>: Unchecked
+<code>Stop With Scene</code>: Checked
 
 This tells BCI2000 to stop collecting data when the scene stops. Since we will be controlling BCI2000 directly, rather than entirely through Unity, we will leave this unchecked.
 
@@ -108,6 +108,8 @@ The signal processing module to start. We will use DummySignalProcessing, as the
 <code>Module 3</code>: DummyApplication
 
 The Application module to start. Since we are using Unity, we will use DummyApplication.
+
+
 
 ===Setting References===
 In order for the game's scripts to communicate with BCI2000, they need to hold a reference to the UnityBCI2000 component.
@@ -189,204 +191,6 @@ Your two scripts should now look like this:
 	    remote.Visualize("CursorPositionY");
     }
 </pre>
-
-
-
-===Using BCI2000 Parameters===
-====Adding Parameters====
-BCI2000's operator contains an interface for changing experiment parameters before running a task. By making use of this interface we can change the behavior of the task dynamically, without needing to rebuild the Unity project each time. In order to do this we need to define the parameters and add them to BCI2000, and later read their values after the operator has a chance to change them. <span style="color: red">This section is not strictly necessary. The project will function the same whether this is done or not, just without the option to change parameters at runtime. </span> 
-
-First, we define add parameters to BCI2000. Similarly to events, parameters must be added while the Operator is in the <code>Idle</code> state, so we add them inside of <code>OnIdle</code>, like below:
-<pre>
-public int someParameter = 5;
-void Awake() {
-    bci.OnIdle(remote => {
-	remote.AddParameter("Application:ParameterPlace", "SomeParameter", someParameter.ToString()); 
-    });
-}
-
-The first argument to the method is the section into which the parameter is placed, that is, on which tab and under which heading the parameter will appear within the Operator's parameter editor window (note that the section is not a scope, all parameter names must be unique). The second argument is the parameter name itself. The third argument is the default value of the parameter. We pass in the value of the parameter, so when it appears in the Operator, its default value is 5 (or another value if it has been changed in the Unity Editor). Note that all parameters are handled as strings, so we need to convert its value to a string when sending it.
-
-For <code>GameControl.cs</code>, we will add parameters corresponding to the Pre-Feedback, Feedback, and Post-Feedback durations, Target Radius, and Number of Trials.
-For <code>BallControl.cs</code>, we will add parameters corresponding to the Acceleration Scale, Coefficient of Restitution, Coefficient of Drag, and Attraction Curve Coefficient (how quickly the Ball moves to follow the Mouse Cursor).
-For <code>MCursorControl.cs</code>, we will add a parameter corresponding to the Rolling Maximum Amount.
-
-Your scripts should look like this:
-<pre>
->>> GameControl.cs
-void Awake() {
-	bci = GameObject.Find("BCI2000").GetComponent<UnityBCI2000>();
-	...
-
-	bci.OnIdle(remote => {
-		remote.AddEvent("PreFeedback", 1);
-		...
-
-		remote.AddParameter("Application:Task", "PreFeedbackDuration", preFeedbackDuration.ToString());
-		remote.AddParameter("Application:Task", "FeedbackDuration", feedbackDuration.ToString());
-		remote.AddParameter("Application:Task", "PostFeedbackDuration", postFeedbackDuration.ToString());
-		remote.AddParameter("Application:Task", "TargetRadius", targetRadius.ToString());
-		remote.AddParameter("Application:Task", "Trials", n_trials.ToString());
-		});
-}
-
->>> BallControl.cs
-void Awake() {
-	...
-	bci.OnIdle(remote => {
-		remote.AddParameter("Application:Physics", "AccelerationScale", accelerationScale.ToString());
-		remote.AddParameter("Application:Physics", "CoeffOfRestitution", coefficientOfRestitution.ToString());
-		remote.AddParameter("Application:Physics", "CoeffOfDrag", coefficientOfDrag.ToString());
-		remote.AddParameter("Application:Physics", "AccelerationCurve", attractionCurveCoefficient.ToString());
-		})}
-}
-
->>> MCursorControl.cs
-void Awake() {
-	...
-
-	bci.OnIdle(remote => {
-		AddParameter("Application:Physics", "RollingMaximumAmount", rollingMaximumAmount.ToString());
-		});
-}
-		
-
-====Reading and Validating Parameters====
-Since we set the parameters within the BCI2000 operator, we need some way to read them back into Unity after they have been set. Specifically, we need to read them after the operator clicks the "Set Config" button within the BCI2000 Operator. How this timing synchronization is covered in the section [[Reacting to BCI2000 state changes]]. In this section we will cover reading and validating parameters.
-
-A method called <code>SetConfig</code> is provided in each of the scripts in which we added parameters previously. This method will be called after the operator changes parameters. In this method we will read in parameters and parse them into valid values. Using the same example parameter as before:
-<pre>
-void SetConfig() {
-    try {
-	someParameter = int.Parse(bci.Control.GetParameter("SomeParameter"));
-    } catch (FormatException e) {
-	bci.Error("Could not parse parameter SomeParameter as int");
-	throw e;
-    }
-}
-</pre>
-
-Note that since we are now working outside the BCI2000 startup sequence, we use <code>UnityBCI2000.Control</code> to call <code>BCI2000Remote</code> methods directly, rather than using <code>OnIdle</code> or <code>OnConnected</code>. We also wrap the call within a try/catch block so that we can report erroneous parameters back to the operator. This is optional, but it keeps your project from failing silently and is otherwise useful for doing things like distributing your Unity project as a standalone executable, where logging errors can only be done through the BCI2000 operator. You can also write a helper function which handles parsing and error reporting for you:
-
-<pre>
-int GetParseParameterInt(string paramName) {
-    int p_val = bci.Control.GetParameter("SomeParameter");
-    try {
-	someParameter = int.Parse(p_val);
-    } catch (FormatException e) {
-	bci.Error($"Could not parse parameter {paramName} (value {p_val}) as int");
-	throw e;
-    }
-}
-</pre>
-Unfortunately, since the version of C# used by Unity does not support type-parameterized parsing, you must write one of these helper functions for each type of data you want to store in a parameter (int, float, double, etc.)
-
-
-Read back the parameters added in the previous step. Your scripts should look like this:
-
-<pre>
->>> GameControl.cs 
-void SetConfig() {
-	try {
-	   preFeedbackDuration = float.Parse(bci.Control.GetParameter("PreFeedbackDuration"));
-	   feedbackDuration = float.Parse(bci.Control.GetParameter("FeedbackDuration"));
-	   postFeedbackDuration = float.Parse(bci.Control.GetParameter("PostFeedbackDuration"));
-	   targetRadius = float.Parse(bci.Control.GetParameter("TargetRadius"));
-	} catch (FormatException e) {
-	   bci.Error("Could not parse one of PreFeedbackDuration, FeedbackDuration, PostFeedbackDuration, or TargetRadius as a float");
-	   throw e;
-	}
-	try {
-	   n_trials = int.Parse(bci.Control.GetParameter("Trials"));
-	} catch (FormatException e) {
-	   bci.Error("Could not parse Trials as an int");
-	   throw e;
-	}
-
-	if (preFeedbackDuration < COUNTDOWN_DURATION) {
-	   bci.Error("preFeedbackDuration must be greater than or equal to 2.25");
-	   throw new Exception("preFeedbackDuration must be greater than or equal to 2.25");
-	}
-    }
-
->>> BallControl.cs
-    public void SetConfig() {
-	try {
-	   accelerationScale = float.Parse(bci.Control.GetParameter("AccelerationScale"));
-	   coefficientOfRestitution = float.Parse(bci.Control.GetParameter("CoeffOfRestitution"));
-	   coefficientOfDrag = float.Parse(bci.Control.GetParameter("CoeffOfDrag"));
-	   attractionCurveCoefficient = float.Parse(bci.Control.GetParameter("AccelerationCurve"));
-	} catch (FormatException e) {
-	   bci.Error("Could not parse one of AccelerationScale, CoeffOfRestitution, CoeffOfDrag, AccelerationCurve as float");
-	   throw e;
-	}
-    }
-
->>> MCursorControl.cs
-public void SetConfig() {
-    try {
-       rollingMaximumAmount = int.Parse(bci.Control.GetParameter("RollingMaximumAmount"));
-    } catch (FormatException e) {
-       bci.Error("Could not parse parameter RollingMaximumAmount as int");
-       throw e;
-    }
-    signalsX = new int[rollingMaximumAmount];
-    signalsY = new int[rollingMaximumAmount];
-}
-</pre>
-
-Note that in <code>GameControl.cs</code>, we also verify that the Pre-Feedback Duration is longer than the duration of the countdown that happens before each trial, and report errors to BCI2000 accordingly.
-
-
-===Reacting to BCI2000 state changes===
-Since we will be controlling the Unity task from BCI2000, we need some way to wait for BCI2000 to be in a specific state, for example, waiting for the operator to click Start and put the Operator Module into the Running state. UnityBCI2000 provides a method for this, the <code>UnityBCI2000.PollSystemState</code> method. In order to wait for the Operator Module to be in the <code>Running</code> state:
-<pre>
-StartCoroutine(bci.PollSystemState(BCI2000Remote.SystemState.Running));
-</pre>
-This will check once per frame whether or not the Operator is in the <code>Running</code> state, and only continue once BCI2000 is in the <code>Running</code> state. Note that since <code>SystemState</code> is a member of <code>BCI2000Remote</code>, we also need to add a <code>using BCI2000RemoteNET</code> statement to our script.
-
-In our case, we need to react to the operator setting the parameters, starting the data collection, and stopping the data collection. These correspond to the Operator Module entering the <code>Resting</code> state, entering the <code>Running</code> state, and exiting the <code>Running</code> state.
-
-In the <code>GameControl.cs</code> script, we will wait for the system to be in the <code>Resting</code> state at the start of the <code>ControLoop</code> method, and wait for the system to be in the <code>Running</code> state immediately before the entering the trial loop. 
-<pre>
->>> GameControl.cs
-
-    IEnumerator ControlLoop() {
-	while (True) {
-<pre style="color: red">
-	   StartCoroutine(bci.PollSystemState(BCI2000Remote.SystemState.Resting));
-</pre>
-
-	   try {
-		...
-	   } catch (Exception e) {
-		continue;
-	   }
-	
-	   int trials = 0;
-
-</pre>
-<pre style="color: red">
-	   StartCoroutine(bci.PollSystemState(BCI2000Remote.SystemState.Running));
-</pre>
-
-	   yield return new WaitForSeconds(preRunDuration);
-	   while (IsContinue() && trials < n_trials) {
-		...
-	   }
-	}
-    }
-</pre>
-
-We also need to check for the operator stopping data collection, so we modify the <code>IsContinue()</code> method.
-
-<pre>
-bool IsContinue () {
-	return bci.Control.GetSystemState() == BCI2000Remote.SystemState.Running;
-}
-</pre>
-
-Remember to add <code>using BCI2000RemoteNET;</code> to the top of the script, so you can access the <code>SystemState</code> enum.
 
 ===Reading the control signal===
 We will be using the control signal to control the cursor. Open the <code>MCursorControl.cs</code> script.
@@ -514,4 +318,4 @@ Check the "Run In Background" box.
 
 ===Usage===
 
-Now, when the Unity application runs, BCI2000 will open. From here, parameters can be set via the Config window, then clicking Set Config and Start will start data collection.
+Now, when the Unity application runs, BCI2000 will open and start collecting data. 
