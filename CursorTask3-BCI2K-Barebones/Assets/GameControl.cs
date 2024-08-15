@@ -173,6 +173,7 @@ public class GameControl : MonoBehaviour
     }
 
     bool IsContinue () {
+	return true;
     }
 
 
